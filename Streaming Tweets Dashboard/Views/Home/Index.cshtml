@@ -1,0 +1,282 @@
+﻿<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <script src="~/Scripts/jquery-3.3.1.min.js"></script>
+    <script src="~/Scripts/jquery-ui-1.12.1.js"></script>
+    <script src="~/Scripts/bootstrap.js"></script>
+    <link href="~/Content/Style/jquery-ui.min.css" rel="stylesheet" />
+    <link href="~/Content/Style/bootstrap.css" rel="stylesheet" />
+    <link href="~/Content/Style/bootstrap-theme.css" rel="stylesheet" />
+    <link href="~/Content/Style/bootstrap-dialog.min.css" rel="stylesheet" />
+    <link href="~/Content/Style/datepicker.css" rel="stylesheet" />
+    <link href="~/Content/Style/Site.css" rel="stylesheet" />
+    <link href="~/Content/Style/dataTables.bootstrap.min.css" rel="stylesheet" />
+    <link href="~/Content/Style/reviewsummary.css" rel="stylesheet" />
+    <link href="~/Content/Style/rcSwitcher.css" rel="stylesheet" />
+    <script src="~/scripts/angular.js"></script>
+    <title>Byju's twitter</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <script src="~/Scripts/d3.layout.cloud.js"></script>
+    <script src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@9"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@8"></script>
+    <style>        
+        .cloud svg {
+            border: 1px solid grey;
+        }
+
+        body {
+            font-family: "Lucida Grande","Droid Sans",Arial,Helvetica,sans-serif;
+        }
+
+        .legend {
+            border: 1px solid #555555;
+            border-radius: 5px 5px 5px 5px;
+            font-size: 0.8em;
+            margin: 10px;
+            padding: 8px;
+        }
+
+        .bld {
+            font-weight: bold;
+        }
+    </style>
+
+</head>
+<body>
+    <div ng-app="myApp" ng-controller="personCtrl">
+        <div class="dvOCRQCHeader">
+            <div class="row">
+                <div class="col-sm-1">
+                    <img style="height:100px;width:400px;" src="~/Content/Images/twitterAnalitics.png" />
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+
+            <br />
+            <br />
+            <div class="form-group">
+                <input type="text" placeholder="Please enter a hashtag or specific twitter account" class="form-control col-sm-1" id="Search" ng-model="searchInput">
+                <br />
+                <br />
+                <span>
+                    <button type="button" ng-click="GetTweet()" class="btn btn-info">Search</button>
+                    <button type="button" ng-click="getCloud()" class="btn btn-info">Get Cloud</button>
+                </span>
+
+            </div>
+        </div>
+        <div>            
+                <div class="cloud column" id="cloudid" style="height: 40%; width: 40%;"></div>
+                <div id="chartContainer" class="column bg-alt" style="height: 40%; width: 40%;"></div>            
+        </div>
+    </div>   
+</body>
+</html>
+<script type="text/javascript">
+    var app = angular.module('myApp', []);
+    app.controller('personCtrl',function ($scope) {        
+        
+        $scope.GetTweet = function () {
+            $scope.TweetTable = [];
+            $.ajax({
+                url: '/api/values/GetTweet?searchInput=' + $scope.searchInput,
+               method: 'GET',
+               dataType: 'json',
+               contentType: 'application/json; charset=utf-8',               
+                success: function (data) {           
+                    $scope.TweetTable = data;
+                    
+                    for (var i = 0; i < 2; i++) {
+                        if (document.contains(document.getElementById(i))) {
+                            document.getElementById(i).remove();
+                        }
+                        var divElement = document.createElement("Div");
+                        divElement.id = i;                        
+                        divElement.style.textAlign = "center";
+                        divElement.style.fontWeight = "bold";
+                        divElement.style.fontSize = "smaller";
+                        divElement.style.paddingTop = "15px";                        
+                        var paragraph = document.createElement("P");
+                        var text = document.createTextNode($scope.TweetTable[i]);
+                        paragraph.appendChild(text);
+                        divElement.appendChild(paragraph);                       
+                        var button = document.createElement("Button");
+                        var textForButton = document.createTextNode("Get Sentiment");
+                        button.appendChild(textForButton);
+                        button.id = "button"+i;
+                        button.addEventListener("click", function () {
+                            $scope.analyseTweet(document.getElementById(button.id.replace("button", "")).textContent)                            
+                        });
+                        divElement.appendChild(button);
+                        document.getElementsByTagName("body")[0].appendChild(divElement);
+
+                    }
+                },
+                fail : function( jqXHR, textStatus ) {
+                    alert("Request failed: " + textStatus);
+                }
+            })
+        }
+
+        $scope.analyseTweet = function (tweet) {            
+            $.ajax({
+                url: '/api/values/analyzeTweet?tweet=' + tweet,
+                method: 'GET',
+                dataType: 'json',
+                contentType: 'application/json; charset=utf-8',
+                data: $scope.searchInput,
+                success: function (Sentimentdata) {               
+                    
+                    var chart = new CanvasJS.Chart("chartContainer", {
+                        title: {
+                            text: "-1 : Negative  0 : nuetral  1 : Positive"
+                        },
+                        data: [
+                            {                               
+                                type: "column",
+                                dataPoints: [
+                                    { label: "Score", y: Sentimentdata[0] },
+                                    { label: "Magnitude", y: Sentimentdata[1] }
+                                ]
+                            }
+                        ]
+                    });
+                    chart.render();                    
+                },
+                fail: function (jqXHR, textStatus) {
+                    alert("Request failed: " + textStatus);                    
+                }
+            })
+        }
+
+        
+
+        $scope.getCloud = function (text2) {  
+
+            for (var i = 0; i < 2; i++) {
+                text2 = text2 + document.getElementById(i).textContent;
+            }
+                words = sortByFrequency(text2.split(/[ ,.]+/))
+                    .map(function (d, i) {
+                        return { text: d, size: -i };
+                    });
+
+            var fontName = "Impact",
+                cWidth = 720,
+                cHeight = 400,
+                svg,
+                wCloud,
+                bbox,
+                ctm,
+                bScale,
+                bWidth,
+                bHeight,
+                bMidX,
+                bMidY,
+                bDeltaX,
+                bDeltaY;
+
+            var cTemp = document.createElement('canvas'),
+                ctx = cTemp.getContext('2d');
+            ctx.font = "100px " + fontName;
+
+            var fRatio = Math.min(cWidth, cHeight) / ctx.measureText(words[0].text).width,
+                fontScale = d3.scale.linear()
+                    .domain([
+                        d3.min(words, function (d) { return d.size; }),
+                        d3.max(words, function (d) { return d.size; })
+                    ])                    
+                    .range([20, 100 * fRatio / 2]),
+                fill = d3.scale.category20();
+
+            d3.layout.cloud()
+                .size([cWidth, cHeight])
+                .words(words)                
+                .rotate(function () { return ~~(Math.random() * 2) * 90; })
+                .font(fontName)
+                .fontSize(function (d) { return fontScale(d.size) })
+                .on("end", draw)
+                .start();
+
+            function draw(words, bounds) {
+                // move and scale cloud bounds to canvas
+                // bounds = [{x0, y0}, {x1, y1}]
+                bWidth = bounds[1].x - bounds[0].x;
+                bHeight = bounds[1].y - bounds[0].y;
+                bMidX = bounds[0].x + bWidth / 2;
+                bMidY = bounds[0].y + bHeight / 2;
+                bDeltaX = cWidth / 2 - bounds[0].x + bWidth / 2;
+                bDeltaY = cHeight / 2 - bounds[0].y + bHeight / 2;
+                bScale = bounds ? Math.min(cWidth / bWidth, cHeight / bHeight) : 1;
+
+                console.log(
+                    "bounds (" + bounds[0].x +
+                    ", " + bounds[0].y +
+                    ", " + bounds[1].x +
+                    ", " + bounds[1].y +
+                    "), width " + bWidth +
+                    ", height " + bHeight +
+                    ", mid (" + bMidX +
+                    ", " + bMidY +
+                    "), delta (" + bDeltaX +
+                    ", " + bDeltaY +
+                    "), scale " + bScale
+                );
+
+                // the library's bounds seem not to correspond to reality?
+                // try using .getBBox() instead?
+
+                svg = d3.select(".cloud").append("svg")
+                    .attr("width", cWidth)
+                    .attr("height", cHeight);
+
+                wCloud = svg.append("g")
+                    //.attr("transform", "translate(" + [bDeltaX, bDeltaY] + ") scale(" + 1 + ")") // nah!
+                    .attr("transform", "translate(" + [bWidth >> 1, bHeight >> 1] + ") scale(" + bScale + ")") // nah!
+                    .selectAll("text")
+                    .data(words)
+                    .enter().append("text")
+                    .style("font-size", function (d) { return d.size + "px"; })
+                    .style("font-family", fontName)
+                    .style("fill", function (d, i) { return fill(i); })
+                    .attr("text-anchor", "middle")
+                    .transition()
+                    .duration(500)
+                    .attr("transform", function (d) {
+                        return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
+                    })
+                    .text(function (d) { return d.text; });
+
+                
+                bbox = wCloud.node(0).getBBox();                
+                console.log(
+                    "bbox (x: " + bbox.x +
+                    ", y: " + bbox.y +
+                    ", w: " + bbox.width +
+                    ", h: " + bbox.height +
+                    ")"
+                );
+
+            };
+
+            function sortByFrequency(arr) {
+                var f = {};
+                arr.forEach(function (i) { f[i] = 0; });
+                var u = arr.filter(function (i) { return ++f[i] == 1; });
+                return u.sort(function (a, b) { return f[b] - f[a]; });
+            };
+
+        }
+        //$scope.showLoader = false;
+
+    }
+    );
+</script>
